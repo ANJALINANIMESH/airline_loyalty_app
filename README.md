@@ -86,5 +86,3 @@ What retention action should be taken
 Potential business impact
 
 ---
-
-**Built with ❤️ for airline customer intelligence**
