@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airline Loyalty Intelligence Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- File Upload Overlay -->
+    <div id="upload-overlay" class="upload-overlay">
+        <div class="upload-content">
+            <h2>Load Customer Data</h2>
+            <p class="upload-description">Please select your customer_summary.csv file to begin analysis</p>
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-icon">📁</div>
+                <p class="upload-text">Click to browse or drag & drop CSV file here</p>
+                <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+            </div>
+            <div class="upload-requirements">
+                <h4>Expected CSV Columns:</h4>
+                <p>Loyalty Number, Total Flights Overall, Total Distance, Total Points Earned, Total Points Redeemed, Engagement Score, Customer Tenure, CLV, Salary, Loyalty Card, Education, Marital Status, Province, Churn Risk, Value Segment, Customer Type, and more...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">Airline Loyalty Intelligence Dashboard</h1>
+                <p class="dashboard-subtitle">Behavioral Churn Prediction and Customer Retention Analytics</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" onclick="resetFilters()">Reset Filters</button>
+                <button class="btn-primary" onclick="exportDashboard()">Export Report</button>
+            </div>
+        </header>
+
+        <!-- Global Filters -->
+        <section class="filters-section">
+            <div class="filters-container">
+                <div class="filter-group">
+                    <label>Loyalty Card Tier</label>
+                    <div id="filter-loyalty-card" class="filter-chips"></div>
+                </div>
+                <div class="filter-group">
+                    <label>Province / Region</label>
+                    <div id="filter-province" class="filter-chips"></div>
+                </div>
+                <div class="filter-group">
+                    <label>Education</label>
+                    <div id="filter-education" class="filter-chips"></div>
+                </div>
+                <div class="filter-group">
+                    <label>Marital Status</label>
+                    <div id="filter-marital" class="filter-chips"></div>
+                </div>
+                <div class="filter-group">
+                    <label>Customer Type</label>
+                    <div id="filter-customer-type" class="filter-chips"></div>
+                </div>
+                <div class="filter-group">
+                    <label>Engagement Segment</label>
+                    <div id="filter-engagement-segment" class="filter-chips"></div>
+                </div>
+                <div class="filter-group">
+                    <label>Value Segment</label>
+                    <div id="filter-value-segment" class="filter-chips"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 1. Executive KPI Overview -->
+        <section class="kpi-section">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h3 class="kpi-value" id="kpi-total-customers">0</h3>
+                        <p class="kpi-label">Total Customers</p>
+                        <span class="kpi-subtitle">Active customer base</span>
+                    </div>
+                </div>
+                <div class="kpi-card alert">
+                    <div class="kpi-content">
+                        <h3 class="kpi-value" id="kpi-churn-risk">0%</h3>
+                        <p class="kpi-label">Churn Risk</p>
+                        <span class="kpi-subtitle">High-risk percentage</span>
+                    </div>
+                </div>
+                <div class="kpi-card danger">
+                    <div class="kpi-content">
+                        <h3 class="kpi-value" id="kpi-revenue-risk">$0</h3>
+                        <p class="kpi-label">Revenue at Risk</p>
+                        <span class="kpi-subtitle">At-risk premium exposure</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h3 class="kpi-value" id="kpi-avg-clv">$0</h3>
+                        <p class="kpi-label">Average CLV</p>
+                        <span class="kpi-subtitle">Customer lifetime value</span>
+                    </div>
+                </div>
+                <div class="kpi-card alert">
+                    <div class="kpi-content">
+                        <h3 class="kpi-value" id="kpi-at-risk-premium">0</h3>
+                        <p class="kpi-label">At-Risk Premium</p>
+                        <span class="kpi-subtitle">Immediate action required</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Retention Command Center -->
+        <section class="analytics-section command-center">
+            <h2 class="section-title">Retention Command Center</h2>
+            <p class="section-subtitle">Who needs attention right now?</p>
+            <div class="command-center-grid">
+                <div class="command-kpi-row">
+                    <div class="command-kpi-card critical">
+                        <div class="command-kpi-content">
+                            <h3 class="command-kpi-value" id="cmd-at-risk-premium">0</h3>
+                            <p class="command-kpi-label">At-Risk Premium Customers</p>
+                            <span class="command-kpi-subtitle" id="cmd-percentage">0% of total customers</span>
+                        </div>
+                    </div>
+                    <div class="command-kpi-card danger">
+                        <div class="command-kpi-content">
+                            <h3 class="command-kpi-value" id="cmd-revenue-risk">$0</h3>
+                            <p class="command-kpi-label">Total Revenue at Risk</p>
+                            <span class="command-kpi-subtitle">Cumulative CLV exposure</span>
+                        </div>
+                    </div>
+                    <div class="command-kpi-card">
+                        <div class="command-kpi-content">
+                            <h3 class="command-kpi-value" id="cmd-avg-clv">$0</h3>
+                            <p class="command-kpi-label">Average CLV (At-Risk Premium)</p>
+                            <span class="command-kpi-subtitle">Per customer value</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="priority-segment-panel">
+                    <h3 class="priority-title">Highest Priority Segment</h3>
+                    <div class="priority-badge-large">At-Risk Premium</div>
+                    <p class="priority-explanation">High-value customers showing disengagement signals and requiring immediate intervention.</p>
+                </div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3 class="chart-title">Priority Customer Table</h3>
+                <div class="table-controls">
+                    <input type="text" id="customer-search" class="search-input" placeholder="Search by Loyalty Number or Type...">
+                    <button class="btn-export" onclick="exportCustomerTable()">Export to CSV</button>
+                </div>
+                <div id="priority-customer-table" class="priority-table-container"></div>
+                <div class="table-pagination">
+                    <button onclick="previousPage()" class="btn-pagination">Previous</button>
+                    <span id="page-info">Page 1</span>
+                    <button onclick="nextPage()" class="btn-pagination">Next</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Customer Segmentation Intelligence -->
+        <section class="analytics-section">
+            <h2 class="section-title">Customer Segmentation Intelligence</h2>
+            <p class="section-subtitle">Who are our customers?</p>
+            <div class="chart-grid-3">
+                <div class="chart-card">
+                    <h3 class="chart-title">Customer Type Distribution</h3>
+                    <div id="chart-customer-type-dist" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">CLV Across Customer Segments</h3>
+                    <div id="chart-clv-segments" class="chart-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Customer Segment Performance Matrix</h3>
+                    <div id="chart-segment-heatmap" class="chart-container-heatmap-large"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Behavioral Flight Path -->
+        <section class="analytics-section">
+            <h2 class="section-title">Behavioral Flight Path - Strategic Quadrant Analysis</h2>
+            <p class="section-subtitle">Why are these customers behaving differently?</p>
+            <div class="chart-card full-width">
+                <div class="quadrant-chart-wrapper">
+                    <!-- Quadrant Labels Outside Plot -->
+                    <div class="quadrant-labels">
+                        <div class="quadrant-label top-left">
+                            <span class="quadrant-name">Growth Zone</span>
+                            <span class="quadrant-desc">High value, weaker engagement</span>
+                        </div>
+                        <div class="quadrant-label top-right">
+                            <span class="quadrant-name">VIP Zone</span>
+                            <span class="quadrant-desc">High engagement & high value</span>
+                        </div>
+                        <div class="quadrant-label bottom-left">
+                            <span class="quadrant-name">Low Priority</span>
+                            <span class="quadrant-desc">Low engagement & low value</span>
+                        </div>
+                        <div class="quadrant-label bottom-right">
+                            <span class="quadrant-name">Loyal but Developing</span>
+                            <span class="quadrant-desc">Good engagement, lower value</span>
+                        </div>
+                    </div>
+                    <div id="chart-behavioral-quadrant" class="chart-container-large"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Churn Risk Intelligence -->
+        <section class="analytics-section">
+            <h2 class="section-title">Churn Risk Intelligence</h2>
+            <p class="section-subtitle">What predicts disengagement?</p>
+            <div class="chart-grid-2">
+                <div class="chart-card">
+                    <h3 class="chart-title">Churn Driver Ranking</h3>
+                    <div id="churn-driver-ranking" class="driver-ranking-container"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Explainable Churn Panel</h3>
+                    <div class="explainable-churn">
+                        <select id="customer-selector" class="customer-selector">
+                            <option value="">Select a customer...</option>
+                        </select>
+                        <div id="churn-explanation" class="churn-explanation-content"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. Loyalty Program Effectiveness -->
+        <section class="analytics-section">
+            <h2 class="section-title">Loyalty Program Effectiveness</h2>
+            <p class="section-subtitle">Is the loyalty program working?</p>
+            
+            <!-- Executive Summary Badges -->
+            <div class="loyalty-summary-badges">
+                <div class="loyalty-badge">
+                    <span class="badge-label">Highest CLV Tier</span>
+                    <span class="badge-value" id="highest-clv-tier">—</span>
+                </div>
+                <div class="loyalty-badge">
+                    <span class="badge-label">Highest Engagement Tier</span>
+                    <span class="badge-value" id="highest-engagement-tier">—</span>
+                </div>
+                <div class="loyalty-badge">
+                    <span class="badge-label">Lowest Churn Tier</span>
+                    <span class="badge-value" id="lowest-churn-tier">—</span>
+                </div>
+            </div>
+            
+            <div class="loyalty-effectiveness-container">
+                <div class="chart-card loyalty-chart-card">
+                    <div id="chart-loyalty-effectiveness" class="chart-container-loyalty"></div>
+                </div>
+                
+                <!-- Executive Insight Card -->
+                <div class="loyalty-insight-card">
+                    <h4 class="insight-card-title">Executive Insight</h4>
+                    <p id="loyalty-insight-text" class="insight-card-text">Analyzing loyalty tier performance...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. Seasonal Behavior Intelligence -->
+        <section class="analytics-section">
+            <h2 class="section-title">Seasonal Behavior Intelligence</h2>
+            <p class="section-subtitle">When do customers engage?</p>
+            <div class="chart-card full-width">
+                <div id="chart-seasonal-heatmap" class="chart-container"></div>
+                <div class="seasonal-insight-panel">
+                    <h4>Key Observation</h4>
+                    <p id="seasonal-insight">Analyzing monthly travel patterns across customer segments...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. Revenue at Risk Analytics -->
+        <section class="analytics-section">
+            <h2 class="section-title">Revenue at Risk Analytics</h2>
+            <p class="section-subtitle">What is the financial impact?</p>
+            <div class="revenue-risk-grid">
+                <div class="revenue-kpi-card">
+                    <h3 class="revenue-kpi-value" id="revenue-at-risk-display">$0</h3>
+                    <p class="revenue-kpi-label">Revenue at Risk</p>
+                </div>
+                <div class="revenue-kpi-card">
+                    <h3 class="revenue-kpi-value" id="potential-recovery">$0</h3>
+                    <p class="revenue-kpi-label">Potential Revenue Recovery</p>
+                </div>
+                <div class="revenue-kpi-card">
+                    <h3 class="revenue-kpi-value" id="clv-share">0%</h3>
+                    <p class="revenue-kpi-label">At-Risk Premium CLV Share</p>
+                </div>
+                <div class="revenue-kpi-card">
+                    <h3 class="revenue-kpi-value" id="retention-score">0</h3>
+                    <p class="revenue-kpi-label">Retention Opportunity Score</p>
+                </div>
+            </div>
+            
+            <div class="chart-card full-width">
+                <h3 class="chart-title">Retention Impact Simulator</h3>
+                <div class="simulator-container">
+                    <div class="simulator-controls">
+                        <label>Retention Improvement Target: <span id="retention-target-value">15%</span></label>
+                        <input type="range" id="retention-slider" min="0" max="30" value="15" class="retention-slider">
+                    </div>
+                    <div class="simulator-results">
+                        <div class="sim-result-card">
+                            <h4 id="sim-customers-saved">0</h4>
+                            <p>Customers Saved</p>
+                        </div>
+                        <div class="sim-result-card">
+                            <h4 id="sim-clv-recovered">$0</h4>
+                            <p>CLV Recovered</p>
+                        </div>
+                        <div class="sim-result-card">
+                            <h4 id="sim-revenue-preserved">$0</h4>
+                            <p>Revenue Preserved</p>
+                        </div>
+                        <div class="sim-result-card">
+                            <h4 id="sim-churn-reduction">0%</h4>
+                            <p>Reduction in Churn Risk</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 9. Retention Strategy Center -->
+        <section class="analytics-section">
+            <h2 class="section-title">Retention Strategy Center</h2>
+            <p class="section-subtitle">What should we do?</p>
+            <div class="chart-card full-width">
+                <div id="retention-strategy-center" class="strategy-center-matrix"></div>
+            </div>
+        </section>
+
+        <!-- 10. Executive Insight Engine -->
+        <section class="analytics-section">
+            <h2 class="section-title">Executive Insight Engine</h2>
+            <p class="section-subtitle">Key takeaways and strategic recommendations</p>
+            <div class="chart-card full-width">
+                <div id="executive-insights" class="executive-insights-grid"></div>
+            </div>
+        </section>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
